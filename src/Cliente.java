@@ -99,11 +99,27 @@ public class Cliente {
 
             //Generar llave simetrica para cifrar K_AB1
             
-            SecretKey llaveAES = Utilidades.derivarLlaves(secreto)[0]; // K_AB1
+            SecretKey llaveAES = Utilidades.derivarLlaves(secreto)[0];
 
             //Generar llave simetrica para MAC K_AB2
 
-            SecretKey llaveHMAC = Utilidades.derivarLlaves(secreto)[1]; // K_AB2
+            SecretKey llaveHMAC = Utilidades.derivarLlaves(secreto)[1];
+
+            //Enviar G^y al servidor
+            out.writeObject(gY);
+            out.flush();
+
+            //Enviar vector de inicializacion al servidor
+            byte[] iv = new byte[16];
+            random.nextBytes(iv);
+            out.writeObject(iv);
+            out.flush();
+
+
+
+            
+
+
 
 
 

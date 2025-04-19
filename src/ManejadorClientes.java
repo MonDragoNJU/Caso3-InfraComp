@@ -11,6 +11,7 @@ import java.security.Signature;
 import java.util.Map;
 import java.security.spec.InvalidParameterSpecException;
 
+import javax.crypto.SecretKey;
 import javax.crypto.spec.DHParameterSpec;
 
 public class ManejadorClientes extends Thread{
@@ -111,7 +112,24 @@ public class ManejadorClientes extends Thread{
                 return;
             }
 
+            //Recibir G^Y del cliente
+            BigInteger gY = (BigInteger) in.readObject();
+
+            //Calcular (G^y)^x mod p
+            BigInteger gXy = gY.modPow(x, p);
+            byte[] secreto = Utilidades.intToBytes(gXy.intValue());
+
+            //Generar llave simetrica para cifrar K_AB1
             
+            SecretKey llaveAES = Utilidades.derivarLlaves(secreto)[0];
+
+            //Generar llave simetrica para MAC K_AB2
+
+            SecretKey llaveHMAC = Utilidades.derivarLlaves(secreto)[1];
+
+            //Recibir vector de inicializacion del cliente
+            byte[] iv = (byte[]) in.readObject();
+
 
 
 
