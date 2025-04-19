@@ -1,9 +1,13 @@
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
+import java.util.ArrayList;
+import java.util.Random;
 
 import javax.crypto.SecretKey;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
 import java.io.IOException;
@@ -115,19 +119,53 @@ public class Cliente {
             out.writeObject(iv);
             out.flush();
 
+            //Recibir ids cifrados de servicios del servidor
+            byte[] idsServiciosCifrados = (byte[]) in.readObject();
 
+            //Verificar HMAC del servidor
+            byte[] hmacRecibido = (byte[]) in.readObject();
+            byte[] hmacCalculado = Utilidades.hmac(idsServiciosCifrados, llaveHMAC);
 
+            if (!java.util.Arrays.equals(hmacRecibido, hmacCalculado)) {
+                System.out.println("Error de autenticación: HMAC no coincide.");
+                return;
+            }
+
+            System.out.println("HMAC verificado. Autenticación exitosa.");
+
+            //Desencriptar ids de servicios
+            byte[] idsServiciosDesencriptados = Utilidades.descifrarAES(idsServiciosCifrados, llaveAES, iv);
+
+            //Convertir byte[] a int
+            ArrayList<Integer> idsServicios = new ArrayList<>();
+            ByteArrayInputStream bais = new ByteArrayInputStream(idsServiciosDesencriptados);
+            DataInputStream dis = new DataInputStream(bais);
+            while (dis.available() > 0) {
+                int idServicio = dis.readInt();
+                idsServicios.add(idServicio);
+                System.out.println("ID de servicio recibido: " + idServicio);
+            }
+            dis.close();
+            bais.close();
+
+            //Elegir un id randmdom de la lista de ids de servicios
+            int idServicioElegido = idsServicios.get(random.nextInt(idsServicios.size()));
+            System.out.println("ID de servicio elegido: " + idServicioElegido);
+
+            //
             
-
-
-
-
-
-
 
         } catch (Exception e) {
             System.out.println("Error al iniciar el cliente: " + e.getMessage());
         }
+    }
+
+    public static String generarIP() {
+        Random rand = new Random();
+        return rand.nextInt(256) + "." +
+               rand.nextInt(256) + "." +
+               rand.nextInt(256) + "." +
+               rand.nextInt(256);
     }
 
     public static void main(String[] args) throws Exception {

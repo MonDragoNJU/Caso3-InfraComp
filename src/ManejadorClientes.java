@@ -1,3 +1,5 @@
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
@@ -5,10 +7,10 @@ import java.net.Socket;
 import java.security.AlgorithmParameterGenerator;
 import java.security.AlgorithmParameters;
 import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.util.Map;
+import java.util.Set;
 import java.security.spec.InvalidParameterSpecException;
 
 import javax.crypto.SecretKey;
@@ -17,14 +19,14 @@ import javax.crypto.spec.DHParameterSpec;
 public class ManejadorClientes extends Thread{
     private Socket socketCliente;
     private PrivateKey llavePrivada;
-    private PublicKey llavePublica;
     private Map<Integer, String> servicios;
+    private Map<Integer, String> tablaIdsServicios;
 
-    public ManejadorClientes(Socket socketCliente, PrivateKey llavePrivada, PublicKey llavePublica, Map<Integer, String> servicios) {
+    public ManejadorClientes(Socket socketCliente, PrivateKey llavePrivada, Map<Integer, String> servicios, Map<Integer, String> tablaIdsServicios) {
         this.socketCliente = socketCliente;
         this.llavePrivada = llavePrivada;
-        this.llavePublica = llavePublica;
         this.servicios = servicios;
+        this.tablaIdsServicios = tablaIdsServicios;
     }
 
     @Override
@@ -130,8 +132,9 @@ public class ManejadorClientes extends Thread{
             //Recibir vector de inicializacion del cliente
             byte[] iv = (byte[]) in.readObject();
 
+            //Mandar tabla de ids de servicios al cliente cifrados
 
-
+            
 
             
         } catch (Exception e) {

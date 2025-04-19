@@ -4,27 +4,20 @@ import java.io.ObjectInputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Servidor {
     private static final int PUERTO = 12345;
     private static PrivateKey llavePrivada;
-    private static PublicKey llavePublica;
     private static Map<Integer, String> servicios = new HashMap<>();
+    private static Map<Integer, String> tablaIdsServicios = new HashMap<>();
 
     private static void leerLlaves() throws IOException, ClassNotFoundException {
         FileInputStream archivoTexto1 = new FileInputStream("llaves/servidor_llave_privada.txt");
         ObjectInputStream oisTexto1 = new ObjectInputStream(archivoTexto1);
         llavePrivada = (PrivateKey) oisTexto1.readObject();
-
-        FileInputStream archivoTexto2 = new FileInputStream("llaves/servidor_llave_publica.txt");
-        ObjectInputStream oisTexto2 = new ObjectInputStream(archivoTexto2);
-        llavePublica = (PublicKey) oisTexto2.readObject();
-
         oisTexto1.close();
-        oisTexto2.close();
 
     }
 
@@ -32,6 +25,10 @@ public class Servidor {
         servicios.put(1, "Consulta Estado Vuelo;192.168.1.101;8080");
         servicios.put(2, "Disponibilidad Vuelos;192.168.1.102;8081");
         servicios.put(3, "Costo Vuelo;192.168.1.103;8082");
+
+        tablaIdsServicios.put(1, "Consulta Estado Vuelo");
+        tablaIdsServicios.put(2, "Disponibilidad Vuelos");
+        tablaIdsServicios.put(3, "Costo Vuelo");
     }
 
     private static void iniciarServidor() throws IOException {
@@ -39,7 +36,7 @@ public class Servidor {
             System.out.println("Servidor iniciado en el puerto " + PUERTO);
             while (true) {
                 Socket socket = socketServidor.accept();
-                new ManejadorClientes(socket, llavePrivada, llavePublica, servicios).start();
+                new ManejadorClientes(socket, llavePrivada, servicios, tablaIdsServicios).start();
             }
         }
     }

@@ -3,6 +3,12 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.spec.IvParameterSpec;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -10,6 +16,7 @@ import java.util.Arrays;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.Mac;
 
 public class Utilidades {
     public static byte[] cifrarRSA(byte[] mensaje, PrivateKey llavePrivada) throws IllegalBlockSizeException, BadPaddingException, Exception {
@@ -63,4 +70,36 @@ public class Utilidades {
 
         return new SecretKey[]{llaveAES, llaveHMAC};
     }
+
+    public static byte[] cifrarAES(byte[] mensaje, SecretKey llaveAES, byte[] iv) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, llaveAES, new IvParameterSpec(iv));
+        byte[] mensajeCifrado = cipher.doFinal(mensaje);
+        return mensajeCifrado;
+    }
+
+    public static byte[] hmac(byte[] mensaje, SecretKey llaveHMAC) throws NoSuchAlgorithmException {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        try {
+            mac.init(llaveHMAC);
+            return mac.doFinal(mensaje);
+        } catch (InvalidKeyException e) {
+            throw new RuntimeException("Error al inicializar HMAC", e);
+        }
+    }
+
+    public static byte[] descifrarAES(byte[] mensajeCifrado, SecretKey llaveAES, byte[] iv) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        cipher.init(Cipher.DECRYPT_MODE, llaveAES, new IvParameterSpec(iv));
+        return cipher.doFinal(mensajeCifrado);
+    }
+
+    public static byte[] serializar(Object objeto) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(objeto);
+        return baos.toByteArray();
+    }
+
+    
 }
