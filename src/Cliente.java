@@ -2,12 +2,11 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Random;
 
 import javax.crypto.SecretKey;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
 import java.io.IOException;
@@ -17,11 +16,13 @@ import java.net.Socket;
 
 public class Cliente {
 
-    static String host = "localhost";
-    static int puerto = 12345;
-    static PublicKey llavePublica;
+    private static String host = "localhost";
+    private static int puerto = 12345;
+    private static PublicKey llavePublica;
+    private static String ip = generarIP();
 
     public Cliente() {
+        System.out.println("CLIENTE - Mi IP es: " + ip);
         leerLlave();
     }
 
@@ -36,13 +37,12 @@ public class Cliente {
 
     private void iniciarCliente() throws Exception {
         try (Socket socketCliente = new Socket(host, puerto)) {
-            System.out.println("Conectado al servidor en " + host + ":" + puerto);
             ObjectOutputStream out = new ObjectOutputStream(socketCliente.getOutputStream());
             ObjectInputStream in = new ObjectInputStream(socketCliente.getInputStream());
 
             // Enviar HELLO al servidor
             out.writeObject("HELLO");
-            System.out.println("HELLO enviado al servidor.");
+            System.out.println("CLIENTE - HELLO.");
             out.flush();
 
             //Crear reto y enviarlo al servidor
@@ -50,22 +50,25 @@ public class Cliente {
             out.writeObject(reto);
             out.flush();
 
+            System.out.println("CLIENTE - Reto enviado al servidor.");
+
             // Recibir reto del servidor
             byte[] retoCifrado = (byte[]) in.readObject();
             byte[] retoDescifrado = Utilidades.descifrarRSA(retoCifrado, llavePublica);
 
             if (!java.util.Arrays.equals(reto, retoDescifrado)) {
-                System.out.println("Error de autenticación: el reto no coincide.");
+                System.out.println("CLIENTE - Error de autenticación: el reto no coincide.");
                 out.writeObject("ERROR");
                 out.flush();
             }
-
-            System.out.println("Reto validado");
 
             // Enviar respuesta al servidor
             out.writeObject("OK");
             out.flush();
 
+            System.out.println("CLIENTE - Respuesta enviada al servidor.");
+
+            //Diffie-Hellman
             //Recibir G, P, G^X, F(K_w-, (G, P, G^x)) del servidor
             BigInteger g = (BigInteger) in.readObject();
             BigInteger p = (BigInteger) in.readObject();
@@ -81,11 +84,11 @@ public class Cliente {
             boolean esValida = sigVerif.verify(firma);
 
             if (esValida) {
-                System.out.println("Firma válida. Autenticación exitosa.");
+                System.out.println("CLIENTE - Firma válida. Autenticación exitosa.");
                 out.writeObject("OK");
                 out.flush();
             } else {
-                System.out.println("Firma inválida. Autenticación fallida.");
+                System.out.println("CLIENTE - Firma inválida. Autenticación fallida.");
                 out.writeObject("ERROR");
                 out.flush();
                 return;
@@ -113,46 +116,78 @@ public class Cliente {
             out.writeObject(gY);
             out.flush();
 
+            System.out.println("CLIENTE - G^Y enviado al servidor.");
+
             //Enviar vector de inicializacion al servidor
             byte[] iv = new byte[16];
             random.nextBytes(iv);
             out.writeObject(iv);
             out.flush();
 
-            //Recibir ids cifrados de servicios del servidor
-            byte[] idsServiciosCifrados = (byte[]) in.readObject();
+            System.out.println("CLIENTE - IV enviado al servidor.");
 
-            //Verificar HMAC del servidor
-            byte[] hmacRecibido = (byte[]) in.readObject();
-            byte[] hmacCalculado = Utilidades.hmac(idsServiciosCifrados, llaveHMAC);
+            //Recibir tabla de ids de servicios del servidor
+            byte[] tablaIdsServiciosCifrados = (byte[]) in.readObject();
+            
+            //Verificar HMAC de la tabla de ids de servicios del servidor
+            byte[] hmacTablaIdsServiciosRecibido = (byte[]) in.readObject();
+            byte[] hmacTablaIdsServiciosCalculado = Utilidades.hmac(tablaIdsServiciosCifrados, llaveHMAC);
 
-            if (!java.util.Arrays.equals(hmacRecibido, hmacCalculado)) {
-                System.out.println("Error de autenticación: HMAC no coincide.");
+            if (!java.util.Arrays.equals(hmacTablaIdsServiciosRecibido, hmacTablaIdsServiciosCalculado)) {
+                System.out.println("CLIENTE - Error de autenticación: HMAC de la tabla de ids de servicios no coincide.");
                 return;
             }
 
-            System.out.println("HMAC verificado. Autenticación exitosa.");
+            //Desencriptar tabla de ids de servicios
+            byte[] tablaIdsServiciosDesencriptadal = Utilidades.descifrarAES(tablaIdsServiciosCifrados, llaveAES, iv);
+            @SuppressWarnings("unchecked")
+            Map<Integer, String> tablaIdsServicios = (Map<Integer, String>) Utilidades.deserializar(tablaIdsServiciosDesencriptadal);
 
-            //Desencriptar ids de servicios
-            byte[] idsServiciosDesencriptados = Utilidades.descifrarAES(idsServiciosCifrados, llaveAES, iv);
-
-            //Convertir byte[] a int
-            ArrayList<Integer> idsServicios = new ArrayList<>();
-            ByteArrayInputStream bais = new ByteArrayInputStream(idsServiciosDesencriptados);
-            DataInputStream dis = new DataInputStream(bais);
-            while (dis.available() > 0) {
-                int idServicio = dis.readInt();
-                idsServicios.add(idServicio);
-                System.out.println("ID de servicio recibido: " + idServicio);
-            }
-            dis.close();
-            bais.close();
-
-            //Elegir un id randmdom de la lista de ids de servicios
+            //Elegir un id de servicio al azar
+            ArrayList<Integer> idsServicios = new ArrayList<>(tablaIdsServicios.keySet());
             int idServicioElegido = idsServicios.get(random.nextInt(idsServicios.size()));
-            System.out.println("ID de servicio elegido: " + idServicioElegido);
 
-            //
+            //Enviar id + IP de servicio al servidor
+            String eleccionId = idServicioElegido + ";" + ip;
+            
+            //Cifrar la eleccionId con la llave AES
+            byte[] eleccionIdCifrado = Utilidades.cifrarAES(eleccionId.getBytes(), llaveAES, iv);
+
+            //Calcular HMAC de la eleccionIdCifrado
+            byte[] hmacEleccionId = Utilidades.hmac(eleccionIdCifrado, llaveHMAC);
+
+            //Enviar eleccionIdCifrado al servidor
+            out.writeObject(eleccionIdCifrado);
+            out.flush();
+
+            //Enviar HMAC de la eleccionIdCifrado al servidor
+            out.writeObject(hmacEleccionId);
+            out.flush();
+
+            //Recibir IP y puerto del servicio
+            byte[] infoServidorCifrado = (byte[]) in.readObject();
+            byte[] hmacInfoServidorRecibido = (byte[]) in.readObject();
+
+            byte[] hmacInfoServidorCalculado = Utilidades.hmac(infoServidorCifrado, llaveHMAC);
+            if (!java.util.Arrays.equals(hmacInfoServidorRecibido, hmacInfoServidorCalculado)) {
+                System.out.println("CLIENTE - Error de autenticación: HMAC de la IP y puerto del servicio no coincide.");
+                return;
+            }
+
+            //Desencriptar IP y puerto del servicio
+            byte[] infoServidorDesencriptado = Utilidades.descifrarAES(infoServidorCifrado, llaveAES, iv);
+            String infoServidor = new String(infoServidorDesencriptado, "UTF-8");
+            String[] partes = infoServidor.split(";");
+            String ipServidor = partes[1];
+            String puertoServidor = partes[2];
+
+            System.out.println("CLIENTE - IP del servicio: " + ipServidor + ", Puerto: " + puertoServidor);
+
+            // Finalizar protocolo
+            out.writeObject("OK");
+            out.flush();
+            System.out.println("CLIENTE - Protocolo finalizado.");
+
             
 
         } catch (Exception e) {

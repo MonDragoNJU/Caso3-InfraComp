@@ -1,5 +1,3 @@
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
@@ -10,7 +8,6 @@ import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.util.Map;
-import java.util.Set;
 import java.security.spec.InvalidParameterSpecException;
 
 import javax.crypto.SecretKey;
@@ -38,7 +35,7 @@ public class ManejadorClientes extends Thread{
             //Recibir HELLO
             String hello = (String) in.readObject();
             if (!hello.equals("HELLO")) {
-                System.out.println("ERROR AL RECIBIR HELLO");
+                System.out.println("SERVIDOR - Error al recibir HELLO");
                 socketCliente.close();
                 return;
             }
@@ -49,7 +46,7 @@ public class ManejadorClientes extends Thread{
             try {
                 retoCifrado = Utilidades.cifrarRSA(reto, llavePrivada);
             } catch (Exception e) {
-                System.out.println("Error al cifrar el reto: " + e.getMessage());
+                System.out.println("SERVIDOR - Error al cifrar el reto: " + e.getMessage());
                 e.printStackTrace();
                 socketCliente.close();
                 return;
@@ -58,12 +55,12 @@ public class ManejadorClientes extends Thread{
             //Enviar reto cifrado al cliente
             out.writeObject(retoCifrado);
             out.flush();
-            System.out.println("Reto cifrado enviado al cliente.");
+            System.out.println("SERVIDOR - Reto cifrado enviado al cliente.");
 
             //Recibir respuesta del cliente
             String respuesta = (String) in.readObject();
             if (!respuesta.equals("OK")) {
-                System.out.println("Cliente no autenticado.");
+                System.out.println("SERVIDOR - Cliente no autenticado.");
                 socketCliente.close();
                 return;
             }
@@ -76,7 +73,7 @@ public class ManejadorClientes extends Thread{
             try {
                 dhSpec = params.getParameterSpec(DHParameterSpec.class);
             } catch (InvalidParameterSpecException e) {
-                System.out.println("Error al obtener parámetros de Diffie-Hellman: " + e.getMessage());
+                System.out.println("SERVIDOR - Error al obtener parámetros de Diffie-Hellman: " + e.getMessage());
                 e.printStackTrace();
                 socketCliente.close();
                 return;
@@ -104,7 +101,7 @@ public class ManejadorClientes extends Thread{
             out.writeObject(firma);
             out.flush();
 
-            System.out.println("G, P, G^X y firma enviados al cliente.");
+            System.out.println("SERVIDOR - G, P, G^X y firma enviados al cliente.");
 
             //Recibir respuesta del cliente
             String respuestaCliente = (String) in.readObject();
@@ -133,8 +130,66 @@ public class ManejadorClientes extends Thread{
             byte[] iv = (byte[]) in.readObject();
 
             //Mandar tabla de ids de servicios al cliente cifrados
+            byte[] idsServiciosCifrados = Utilidades.cifrarAES(Utilidades.serializar(tablaIdsServicios), llaveAES, iv);
+            out.writeObject(idsServiciosCifrados);
+            out.flush();
 
-            
+            System.out.println("SERVIDOR - Tabla de ids de servicios cifrados enviada al cliente.");
+
+            //Mandar Hmac de la tabla de ids de servicios al cliente
+            byte[] hmac = Utilidades.hmac(idsServiciosCifrados, llaveHMAC);
+            out.writeObject(hmac);
+            out.flush();
+
+            System.out.println("SERVIDOR - HMAC de la tabla de ids de servicios enviada al cliente.");
+
+            // Recibir id del servicio solicitado
+            byte[] eleccionIdCifrado = (byte[]) in.readObject();
+
+            //Recibir HMAC del id del servicio solicitado
+            byte[] hmacEleccion = (byte[]) in.readObject();
+
+            //Verificar HMAC del id del servicio solicitado
+            byte[] hmacEleccionCalculado = Utilidades.hmac(eleccionIdCifrado, llaveHMAC);
+            if (!java.util.Arrays.equals(hmacEleccion, hmacEleccionCalculado)) {
+                System.out.println("Error de autenticación: HMAC del id del servicio no coincide.");
+                socketCliente.close();
+                return;
+            }
+
+            //Desencriptar id del servicio solicitado
+            byte[] eleccionIdCifradoDesencriptado = Utilidades.descifrarAES(eleccionIdCifrado, llaveAES, iv);
+            String eleccionId = new String(eleccionIdCifradoDesencriptado, "UTF-8");
+
+            //Separar id del servicio y la ip del cliente
+            String[] partes = eleccionId.split(";");
+            int idServicio = Integer.parseInt(partes[0]);
+            String ipCliente = partes[1];
+
+            //Enviar ip del servidor y puerto
+            String infoServidor = servicios.get(idServicio);
+            byte[] infoServidorCifrado = Utilidades.cifrarAES(infoServidor.getBytes(), llaveAES, iv);
+            out.writeObject(infoServidorCifrado);
+            out.flush();
+
+            System.out.println("SERVIDOR - IP y puerto del servicio enviado al cliente.");
+
+            //Enviar HMAC de la ip y puerto del servicio al cliente
+            byte[] hmacInfoServidor = Utilidades.hmac(infoServidorCifrado, llaveHMAC);
+            out.writeObject(hmacInfoServidor);
+            out.flush();
+
+            System.out.println("SERVIDOR - HMAC de la ip y puerto del servicio enviado al cliente.");
+
+            //Finalizar la conexión con el cliente y recibir OK
+            String respuestaFinal = (String) in.readObject();
+            if (!respuestaFinal.equals("OK")) {
+                System.out.println("Error al finalizar la conexión con el cliente.");
+                socketCliente.close();
+                return;
+            }
+            System.out.println("SERVIDOR - Conexión con el cliente finalizada. Redirigiendo al cliente al servicio.");
+            socketCliente.close();
 
             
         } catch (Exception e) {

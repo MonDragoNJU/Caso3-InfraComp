@@ -36,6 +36,7 @@ public class Servidor {
             System.out.println("Servidor iniciado en el puerto " + PUERTO);
             while (true) {
                 Socket socket = socketServidor.accept();
+                System.out.println("SERVIDOR - Cliente conectado desde " + socket.getInetAddress() + ":" + socket.getPort());
                 new ManejadorClientes(socket, llavePrivada, servicios, tablaIdsServicios).start();
             }
         }
