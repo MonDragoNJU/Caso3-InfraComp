@@ -1,6 +1,11 @@
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -24,5 +29,38 @@ public class Utilidades {
         SecureRandom random = new SecureRandom();
         random.nextBytes(reto);
         return reto;
+    }
+
+    public static byte[] intToBytes(int numero) {
+        return new byte[] {
+            (byte)(numero >> 24),
+            (byte)(numero >> 16),
+            (byte)(numero >> 8),
+            (byte)(numero)
+        };
+    }
+
+    // Convertir byte[] a int
+    public static int bytesToInt(byte[] bytes) {
+        return ((bytes[0] & 0xFF) << 24) |
+               ((bytes[1] & 0xFF) << 16) |
+               ((bytes[2] & 0xFF) << 8) |
+               (bytes[3] & 0xFF);
+    }
+
+    public static SecretKey[] derivarLlaves(byte[] secreto) throws NoSuchAlgorithmException {
+        //Calcular digest SHA-512 del secreto
+        MessageDigest digest = MessageDigest.getInstance("SHA-512");
+        byte[] hash = digest.digest(secreto); 
+
+        //Particionar el hash
+        byte[] primeros256bits = Arrays.copyOfRange(hash, 0, 32); // Bytes 0-31
+        byte[] ultimos256bits = Arrays.copyOfRange(hash, 32, 64); // Bytes 32-63
+
+        // 3. Construir llaves
+        SecretKey llaveAES = new SecretKeySpec(primeros256bits, "AES"); // K_AB1
+        SecretKey llaveHMAC = new SecretKeySpec(ultimos256bits, "HmacSHA256"); // K_AB2
+
+        return new SecretKey[]{llaveAES, llaveHMAC};
     }
 }
