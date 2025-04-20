@@ -66,9 +66,9 @@ public class Utilidades {
         byte[] primeros256bits = Arrays.copyOfRange(hash, 0, 32); // Bytes 0-31
         byte[] ultimos256bits = Arrays.copyOfRange(hash, 32, 64); // Bytes 32-63
 
-        // 3. Construir llaves
-        SecretKey llaveAES = new SecretKeySpec(primeros256bits, "AES"); // K_AB1
-        SecretKey llaveHMAC = new SecretKeySpec(ultimos256bits, "HmacSHA256"); // K_AB2
+        //Construir llaves
+        SecretKey llaveAES = new SecretKeySpec(primeros256bits, "AES");
+        SecretKey llaveHMAC = new SecretKeySpec(ultimos256bits, "HmacSHA256");
 
         return new SecretKey[]{llaveAES, llaveHMAC};
     }
