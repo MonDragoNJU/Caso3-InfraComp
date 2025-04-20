@@ -13,7 +13,7 @@ public class Servidor {
     private static Map<Integer, String> servicios = new HashMap<>();
     private static Map<Integer, String> tablaIdsServicios = new HashMap<>();
 
-    private static void leerLlaves() throws IOException, ClassNotFoundException {
+    private void leerLlaves() throws IOException, ClassNotFoundException {
         FileInputStream archivoTexto1 = new FileInputStream("llaves/servidor_llave_privada.txt");
         ObjectInputStream oisTexto1 = new ObjectInputStream(archivoTexto1);
         llavePrivada = (PrivateKey) oisTexto1.readObject();
@@ -21,7 +21,7 @@ public class Servidor {
 
     }
 
-    private static void llenarTablaServicios() {
+    private void llenarTablaServicios() {
         servicios.put(1, "Consulta Estado Vuelo;192.168.1.101;8080");
         servicios.put(2, "Disponibilidad Vuelos;192.168.1.102;8081");
         servicios.put(3, "Costo Vuelo;192.168.1.103;8082");
@@ -31,7 +31,7 @@ public class Servidor {
         tablaIdsServicios.put(3, "Costo Vuelo");
     }
 
-    private static void iniciarServidor() throws IOException {
+    private void iniciarServidor() throws IOException {
         try (ServerSocket socketServidor = new ServerSocket(PUERTO)) {
             System.out.println("Servidor iniciado en el puerto " + PUERTO);
             while (true) {

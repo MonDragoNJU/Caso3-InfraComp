@@ -14,7 +14,7 @@ public class Cliente {
     private static final int PUERTO = 12345;
     private static final String RUTA_LLAVE_PUBLICA = "llaves/servidor_llave_publica.txt";
 
-    private static PublicKey llavePublica;
+    private PublicKey llavePublica;
     private static final String ip = generarIP();
 
     public Cliente() {
