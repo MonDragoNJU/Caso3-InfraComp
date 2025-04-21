@@ -46,7 +46,11 @@ public class ManejadorClientes extends Thread {
             BigInteger x = new BigInteger(1024 - 1, new SecureRandom());
             BigInteger gX = g.modPow(x, p);
 
+            long inicioFirma = System.nanoTime();
             byte[] firma = firmarParametros(g, p, gX);
+            long finFirma = System.nanoTime();
+            double tiempoMs = (finFirma - inicioFirma) / 1_000_000.0;
+            MedidorTiempos.escribirTiempo("Firma", "Firma", tiempoMs);
 
             out.writeObject(g);
             out.writeObject(p);
@@ -66,8 +70,12 @@ public class ManejadorClientes extends Thread {
 
             byte[] iv = (byte[]) in.readObject();
 
+            long inicioCifrado = System.nanoTime();
             byte[] idsServiciosCifrados = Utilidades.cifrarAES(Utilidades.serializar(tablaIdsServicios), llaveAES, iv);
             enviarObjeto(out, idsServiciosCifrados, "Tabla de ids de servicios cifrados enviada al cliente.");
+            long finCifrado = System.nanoTime();
+            tiempoMs = (finCifrado - inicioCifrado) / 1_000_000.0;
+            MedidorTiempos.escribirTiempo("CifradoTabla", "Cifrado", tiempoMs);
 
             enviarHMAC(out, idsServiciosCifrados, llaveHMAC, "HMAC de la tabla de ids de servicios enviada al cliente.");
 

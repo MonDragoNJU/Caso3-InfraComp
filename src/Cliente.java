@@ -8,7 +8,7 @@ import java.util.*;
 
 import javax.crypto.SecretKey;
 
-public class Cliente {
+public class Cliente extends Thread {
 
     private static final String HOST = "localhost";
     private static final int PUERTO = 12345;
@@ -100,7 +100,11 @@ public class Cliente {
             int idElegido = elegirServicio(tablaServicios);
             enviarEleccionServicio(out, idElegido, llaveAES, llaveHMAC, iv);
 
+            long inicioVerif = System.nanoTime();
             recibirDireccionServicio(in, llaveAES, llaveHMAC, iv);
+            long finVerif = System.nanoTime();
+            double tiempoMs = (finVerif - inicioVerif) / 1_000_000.0;
+            MedidorTiempos.escribirTiempo("Verificacion", "Verificacion", tiempoMs);
 
             out.writeObject("OK");
             out.flush();
@@ -176,7 +180,8 @@ public class Cliente {
                rand.nextInt(256);
     }
 
-    public static void main(String[] args) {
-        new Cliente().iniciarCliente();
+    @Override
+    public void run() {
+        iniciarCliente();
     }
 }
